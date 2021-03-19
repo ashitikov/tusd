@@ -677,6 +677,13 @@ func (handler *UnroutedHandler) writeChunk(ctx context.Context, upload Upload, i
 func (handler *UnroutedHandler) finishUploadIfComplete(ctx context.Context, upload Upload, info FileInfo, r *http.Request) error {
 	// If the upload is completed, ...
 	if !info.SizeIsDeferred && info.Offset == info.Size {
+		// ... synchronously call pre-finish hook
+		if handler.config.PreFinishResponseCallback != nil {
+			if err := handler.config.PreFinishResponseCallback(newHookEvent(info, r)); err != nil {
+				return err
+			}
+		}
+		
 		// ... allow custom mechanism to finish and cleanup the upload
 		if err := upload.FinishUpload(ctx); err != nil {
 			return err
@@ -688,12 +695,6 @@ func (handler *UnroutedHandler) finishUploadIfComplete(ctx context.Context, uplo
 		}
 
 		handler.Metrics.incUploadsFinished()
-
-		if handler.config.PreFinishResponseCallback != nil {
-			if err := handler.config.PreFinishResponseCallback(newHookEvent(info, r)); err != nil {
-				return err
-			}
-		}
 	}
 
 	return nil
